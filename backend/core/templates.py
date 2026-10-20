@@ -1,0 +1,6 @@
+REPORT_TEMPLATES = [
+    {'id': 'scientific-v1', 'title': 'Ilmiy faoliyat hisoboti', 'description': 'Maqolalar, konferensiyalar va ilmiy loyihalarni bir joyga jamlang.', 'type': 'scientific', 'version': '1.0', 'fields': ['Hisobot nomi', 'Hisobot davri', 'Ilmiy natijalar', 'Tasdiqlovchi fayl yoki havola'], 'icon': 'FlaskConical'},
+    {'id': 'annual-v1', 'title': 'Yillik faoliyat hisoboti', 'description': 'Yil davomida bajarilgan ishlar va erishilgan natijalar.', 'type': 'annual', 'version': '1.0', 'fields': ['Hisobot nomi', 'Hisobot davri', 'Bajarilgan ishlar', 'Tasdiqlovchi fayl yoki havola'], 'icon': 'ChartNoAxesCombined'},
+    {'id': 'teaching-v1', 'title': 'O‘quv-uslubiy hisobot', 'description': 'Darslar, o‘quv qo‘llanmalar va uslubiy ishlar hisoboti.', 'type': 'teaching', 'version': '1.0', 'fields': ['Hisobot nomi', 'Hisobot davri', 'O‘quv-uslubiy natijalar', 'Tasdiqlovchi fayl yoki havola'], 'icon': 'BookOpen'},
+    {'id': 'qualification-v1', 'title': 'Malaka oshirish hisoboti', 'description': 'Kurslar, stajirovkalar va olingan sertifikatlar.', 'type': 'qualification', 'version': '1.0', 'fields': ['Hisobot nomi', 'Hisobot davri', 'Malaka natijalari', 'Tasdiqlovchi fayl yoki havola'], 'icon': 'Award'},
+]

@@ -205,6 +205,16 @@ cython_debug/
 # Temporary file for partial code execution
 tempCodeRunnerFile.py
 
+# UniFlow generated files and private runtime state
+node_modules/
+frontend/dist/
+frontend/test-results/
+frontend/playwright-report/
+*.tsbuildinfo
+backend/media/
+.local/
+artifacts/
+
 # Ruff stuff:
 .ruff_cache/
 
