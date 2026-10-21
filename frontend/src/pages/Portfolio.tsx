@@ -50,7 +50,8 @@ export default function Portfolio({ workspace, onRefresh, toast }: PageProps) {
   const [deleting, setDeleting] = useState(false);
   const [detailError, setDetailError] = useState('');
   const locked = new Set(workspace.reports.filter(report => report.status === 'submitted' || report.status === 'approved').flatMap(report => report.activity_ids));
-  const filtered = useMemo(() => workspace.activities.filter(activity => (category === 'all' || activity.category === category) && `${activity.title} ${activity.description}`.toLocaleLowerCase().includes(query.toLocaleLowerCase())).sort((a, b) => sort === 'name' ? a.title.localeCompare(b.title) : b.date.localeCompare(a.date)), [workspace.activities, category, query, sort]);
+  const mine = useMemo(() => workspace.activities.filter(activity => activity.owner_id === workspace.user.id), [workspace.activities, workspace.user.id]);
+  const filtered = useMemo(() => mine.filter(activity => (category === 'all' || activity.category === category) && `${activity.title} ${activity.description}`.toLocaleLowerCase().includes(query.toLocaleLowerCase())).sort((a, b) => sort === 'name' ? a.title.localeCompare(b.title) : b.date.localeCompare(a.date)), [mine, category, query, sort]);
   useEffect(() => {
     const openRequested = () => {
       if (!window.location.hash.startsWith('#portfolio')) return;
@@ -64,7 +65,7 @@ export default function Portfolio({ workspace, onRefresh, toast }: PageProps) {
     openRequested(); window.addEventListener('hashchange', openRequested);
     return () => window.removeEventListener('hashchange', openRequested);
   }, []);
-  const canModifySelected = selected?.owner_name === workspace.user.name;
+  const canModifySelected = selected?.owner_id === workspace.user.id;
   const safeLink = selected && /^https?:\/\//i.test(selected.link) ? selected.link : null;
   const openDetail = (activity: Activity) => { setSelected(activity); setConfirmDelete(false); setDetailError(''); };
   async function deleteActivity() {
@@ -77,11 +78,11 @@ export default function Portfolio({ workspace, onRefresh, toast }: PageProps) {
   return <>
     <div className="sp-portfolio-overview">
       {categories.map(key => { const Icon = categoryIcons[key]; return <button key={key} className={`card sp-category-card ${category === key ? 'sp-category-active' : ''}`} onClick={() => setCategory(category === key ? 'all' : key)} aria-pressed={category === key}>
-        <span className={`sp-category-icon sp-tone-${key}`}><Icon size={21} /></span><span className="sp-category-name">{categoryLabels[key]}</span><strong>{workspace.activities.filter(item => item.category === key).length}<span>ta ish</span></strong>
+        <span className={`sp-category-icon sp-tone-${key}`}><Icon size={21} /></span><span className="sp-category-name">{categoryLabels[key]}</span><strong>{mine.filter(item => item.category === key).length}<span>ta ish</span></strong>
       </button>; })}
     </div>
     <section className="card sp-portfolio-list">
-      <div className="sp-section-toolbar"><div><h2>Faoliyatlarim <span className="sp-count">{workspace.activities.length}</span></h2><p>Yutuqlaringiz va ularni tasdiqlovchi hujjatlar bir joyda.</p></div><button className="btn primary" onClick={() => setEditor('new')}><Plus size={17} /> Faoliyat qo‘shish</button></div>
+      <div className="sp-section-toolbar"><div><h2>Faoliyatlarim <span className="sp-count">{mine.length}</span></h2><p>Yutuqlaringiz va ularni tasdiqlovchi hujjatlar bir joyda.</p></div><button className="btn primary" onClick={() => setEditor('new')}><Plus size={17} /> Faoliyat qo‘shish</button></div>
       <div className="sp-list-filters"><div className="sp-search"><Search size={17} /><input aria-label="Faoliyatni qidirish" placeholder="Faoliyat nomi bo‘yicha qidirish..." value={query} onChange={event => setQuery(event.target.value)} /></div><select className="input sp-select" value={category} onChange={event => setCategory(event.target.value as ActivityCategory | 'all')} aria-label="Faoliyat turi"><option value="all">Barcha turlar</option>{categories.map(key => <option value={key} key={key}>{categoryLabels[key]}</option>)}</select><select className="input sp-select" aria-label="Saralash" value={sort} onChange={event => setSort(event.target.value)}><option value="newest">Avval yangilari</option><option value="name">Nomi bo‘yicha</option></select></div>
       <div className="sp-activity-grid">
         {filtered.map(activity => { const Icon = categoryIcons[activity.category]; return <button className="sp-activity-card" key={activity.id} onClick={() => openDetail(activity)}>

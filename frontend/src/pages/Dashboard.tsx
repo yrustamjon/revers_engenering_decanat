@@ -5,7 +5,9 @@ import Status from '../components/Status';
 
 interface Props extends PageProps { navigate: (page: Page, query?: string) => void; openReport: (report: Report) => void; createReport: () => void }
 export default function Dashboard({ workspace, navigate, openReport, createReport }: Props) {
-  const { activities, reports, work_items, profile } = workspace;
+  const { work_items, profile } = workspace;
+  const activities = workspace.activities.filter(activity => activity.owner_id === workspace.user.id);
+  const reports = workspace.reports.filter(report => report.owner_id === workspace.user.id);
   const approved = reports.filter(report => report.status === 'approved').length;
   const pending = reports.filter(report => report.status === 'submitted').length;
   const returned = reports.filter(report => report.status === 'returned');

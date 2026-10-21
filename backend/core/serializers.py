@@ -120,15 +120,18 @@ class ReportSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError({'template_id': 'Yaratilgan hisobot shablonini almashtirib bo‘lmaydi.'})
         if self.instance and report_type != self.instance.type:
             raise serializers.ValidationError({'type': 'Hisobot turini almashtirish uchun yangi qoralama yarating.'})
+        if self.instance is None:
+            if template is None:
+                template = ReportTemplate.objects.filter(type=report_type, is_active=True).first()
+            if template is None:
+                raise serializers.ValidationError({'template_id': 'Bu hisobot turi uchun faol shablon mavjud emas. Administratorga murojaat qiling.'})
+            attrs['template_id'] = template
         return attrs
 
     def create(self, validated_data):
-        template = validated_data.pop('template_id', None)
-        if template is None:
-            template = ReportTemplate.objects.filter(type=validated_data['type'], is_active=True).first()
-        if template:
-            validated_data['template_version'] = template.version
-            validated_data['template_snapshot'] = {'id': template.pk, 'title': template.title, 'description': template.description, 'type': template.type, 'version': template.version, 'fields': template.fields, 'form_schema': template.form_schema}
+        template = validated_data.pop('template_id')
+        validated_data['template_version'] = template.version
+        validated_data['template_snapshot'] = {'id': template.pk, 'title': template.title, 'description': template.description, 'type': template.type, 'version': template.version, 'fields': template.fields, 'form_schema': template.form_schema}
         return super().create(validated_data)
 
 

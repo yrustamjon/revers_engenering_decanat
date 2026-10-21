@@ -218,9 +218,21 @@ class DurableQueue:
             connection.execute('UPDATE jobs SET state=?,reply=?,updated_at=? WHERE id=?', (state, reply, time.time(), job_id))
             self._outbox(connection, f'result:{job_id}', reply, job_id)
 
-    def cancel(self, job_id: int):
+    def accept_cancel(self, update_id: int, job_id: int | None, reply: str) -> bool:
+        """Bind a cancellation to its original job before signalling the runner.
+
+        A restart may start the next queued job before Telegram replays an
+        unacknowledged update. Its command outcome and original target must be
+        committed together so that replay cannot cancel that different job.
+        """
         with self.connection() as connection:
-            connection.execute('UPDATE jobs SET cancel_requested=1 WHERE id=?', (job_id,))
+            if connection.execute('SELECT 1 FROM accepted_updates WHERE update_id=?', (update_id,)).fetchone():
+                return False
+            if job_id is not None:
+                connection.execute('UPDATE jobs SET cancel_requested=1 WHERE id=?', (job_id,))
+            self._outbox(connection, f'command:{update_id}', reply, job_id)
+            connection.execute('INSERT INTO accepted_updates VALUES(?,?)', (update_id, time.time()))
+            return True
 
     def add_progress(self, job_id: int, sequence: int, text: str):
         with self.connection() as connection:
@@ -344,12 +356,12 @@ class AssistantWorker(Worker):
         elif command == '/cancel':
             with self._state_lock:
                 if self._current and self._cancel:
-                    self.queue.cancel(self._current['id'])
-                    self._cancel.set()
                     reply = 'Joriy ishni bekor qilish so‘rovi yuborildi. Jarayon to‘xtashi kutilmoqda; qilingan o‘zgarishlar avtomatik qaytarilmaydi.'
+                    if self.queue.accept_cancel(update_id, self._current['id'], reply):
+                        self._cancel.set()
                 else:
                     reply = 'Hozir bekor qilinadigan Codex jarayoni yo‘q. Navbatdagi ishlar saqlanadi.'
-                self.queue.accept_command(update_id, reply)
+                    self.queue.accept_cancel(update_id, None, reply)
         elif command == '/new':
             with self._state_lock:
                 counts = self.queue.counts()

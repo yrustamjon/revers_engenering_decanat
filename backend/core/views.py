@@ -101,7 +101,9 @@ def reviewer_reports(user):
 def accessible_reports(user):
     if is_administrator(user):
         return Report.objects.all()
-    return (Report.objects.filter(owner=user) | reviewer_reports(user)).distinct()
+    # Keep the outer query free of DISTINCT: PostgreSQL cannot lock a DISTINCT
+    # result when an employee submits a report with SELECT ... FOR UPDATE.
+    return Report.objects.filter(Q(owner=user) | Q(pk__in=reviewer_reports(user).values('pk')))
 
 
 def validate_report_extra_data(report):
@@ -132,7 +134,8 @@ def validate_report_extra_data(report):
             try:
                 if not isinstance(value, str):
                     raise ValueError()
-                date.fromisoformat(value)
+                if date.fromisoformat(value).isoformat() != value:
+                    raise ValueError()
             except (ValueError, TypeError):
                 errors[key] = [f'{label}: sanani YYYY-MM-DD formatida kiriting.']
         elif kind == 'url':
@@ -248,9 +251,12 @@ class ReportViewSet(viewsets.ModelViewSet):
         without_evidence = [a.title for a in activities if not a.attachment_id and not a.link]
         if without_evidence:
             errors['activity_ids'] = ['Tasdiqlovchi fayl yoki havola yetishmaydi: ' + ', '.join(without_evidence)]
-        extra_errors = validate_report_extra_data(report)
-        if extra_errors:
-            errors['extra_data'] = extra_errors
+        if not report.template_version or not isinstance(report.template_snapshot, dict) or not report.template_snapshot:
+            errors['template_id'] = ['Hisobot shabloni saqlanmagan. Faol shablon asosida yangi qoralama yarating.']
+        else:
+            extra_errors = validate_report_extra_data(report)
+            if extra_errors:
+                errors['extra_data'] = extra_errors
         if errors:
             raise ValidationError(errors)
         report.status = 'submitted'

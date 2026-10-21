@@ -1,5 +1,7 @@
 # UniFlow — universitet xodimlari platformasi rejasi
 
+2026-10-22 tekshiruvida topilgan xatolar, tuzatishlar va keyingi vazifalarning qabul qilish mezonlari [qolgan ishlar rejasida](REMAINING_WORK.md) qayd etilgan.
+
 ## Maqsad
 
 Xodim ishga oid ma’lumot va bajargan ishini bir marta kiritadi. Tizim shu ma’lumotdan shaxsiy portfel va davriy hisobot tayyorlashda foydalanadi. Mas’ul xodim dalillarni ko‘rib chiqadi, aniq izoh bilan qaytaradi yoki qabul qiladi. Qog‘oz talab etiladigan jarayonda tekshirilgan nusxa chiqariladi.

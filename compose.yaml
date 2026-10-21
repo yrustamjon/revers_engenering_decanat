@@ -15,6 +15,17 @@ services:
       retries: 10
     networks: [application]
 
+  cache:
+    image: redis:8-alpine
+    restart: unless-stopped
+    command: ["redis-server", "--save", "", "--appendonly", "no", "--maxmemory", "128mb", "--maxmemory-policy", "noeviction"]
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+    networks: [application]
+
   backend:
     build:
       context: .
@@ -26,6 +37,7 @@ services:
       DJANGO_ALLOWED_HOSTS: ${DJANGO_ALLOWED_HOSTS:?Set your real hostname}
       DJANGO_CSRF_TRUSTED_ORIGINS: ${DJANGO_CSRF_TRUSTED_ORIGINS:?Set your HTTPS origin}
       DJANGO_TRUST_PROXY: "1"
+      DJANGO_REDIS_URL: redis://cache:6379/0
       POSTGRES_HOST: database
       POSTGRES_PORT: "5432"
       POSTGRES_DB: ${POSTGRES_DB:?Set POSTGRES_DB}
@@ -37,6 +49,8 @@ services:
       - django-static:/var/lib/uniflow/static
     depends_on:
       database:
+        condition: service_healthy
+      cache:
         condition: service_healthy
     healthcheck:
       test: ["CMD", "python", "/app/deploy/healthcheck.py"]
@@ -59,7 +73,7 @@ services:
       backend:
         condition: service_healthy
     healthcheck:
-      test: ["CMD-SHELL", "wget -q -O /dev/null http://127.0.0.1:8080/healthz"]
+      test: ["CMD-SHELL", "wget -Y off -q -O /dev/null http://127.0.0.1:8080/healthz"]
       interval: 15s
       timeout: 5s
       retries: 5

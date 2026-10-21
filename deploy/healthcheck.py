@@ -2,8 +2,15 @@
 import os
 import sys
 from urllib.error import HTTPError, URLError
-from urllib.request import Request, urlopen
+from urllib.request import ProxyHandler, Request, build_opener
 import psycopg
+import redis
+
+if os.environ.get('DJANGO_REDIS_URL'):
+    try:
+        redis.Redis.from_url(os.environ['DJANGO_REDIS_URL'], socket_connect_timeout=3, socket_timeout=3).ping()
+    except redis.RedisError:
+        sys.exit(1)
 
 if os.environ.get('POSTGRES_HOST'):
     try:
@@ -26,7 +33,8 @@ request = Request('http://127.0.0.1:8000/api/auth/session/', headers={
     'X-Forwarded-Proto': 'https',
 })
 try:
-    with urlopen(request, timeout=4) as response:
+    # This is the service in this container, never an external HTTP destination.
+    with build_opener(ProxyHandler({})).open(request, timeout=4) as response:
         sys.exit(0 if response.status == 200 else 1)
 except HTTPError as error:
     # An unauthenticated session is the expected health response.

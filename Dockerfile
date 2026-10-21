@@ -2,7 +2,9 @@
 FROM node:22-alpine AS frontend-build
 WORKDIR /build/frontend
 COPY frontend/package.json frontend/package-lock.json ./
-RUN npm ci --no-audit --no-fund
+RUN --mount=type=secret,id=proxy_ca \
+    if [ -f /run/secrets/proxy_ca ]; then export NODE_EXTRA_CA_CERTS=/run/secrets/proxy_ca; fi; \
+    npm ci --no-audit --no-fund
 COPY frontend/ ./
 RUN npm run build
 
@@ -14,7 +16,9 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
     DJANGO_MEDIA_ROOT=/var/lib/uniflow/media
 WORKDIR /app/backend
 COPY backend/requirements.txt ./requirements.txt
-RUN pip install --no-cache-dir -r requirements.txt \
+RUN --mount=type=secret,id=proxy_ca \
+    if [ -f /run/secrets/proxy_ca ]; then export PIP_CERT=/run/secrets/proxy_ca; fi; \
+    pip install --no-cache-dir -r requirements.txt \
     && groupadd --gid 10001 uniflow \
     && useradd --uid 10001 --gid 10001 --no-create-home uniflow \
     && mkdir -p /var/lib/uniflow/static /var/lib/uniflow/media \

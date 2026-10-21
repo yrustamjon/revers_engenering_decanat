@@ -6,7 +6,7 @@ from django.core.files.uploadedfile import SimpleUploadedFile
 from django.core.management import call_command
 from django.test import TestCase, override_settings
 from rest_framework.test import APIClient
-from .models import Activity, Attachment, History, Notification, Report, WorkItem
+from .models import Activity, Attachment, History, Notification, Report, ReportTemplate, WorkItem
 
 
 class WorkflowTests(TestCase):
@@ -34,7 +34,9 @@ class WorkflowTests(TestCase):
             user.profile.role = role
             user.profile.save()
         self.activity = Activity.objects.create(owner=self.employee, title='Ilmiy maqola', category='article', date='2026-10-01', link='https://example.com/article')
-        self.report = Report.objects.create(owner=self.employee, title='Ilmiy hisobot', type='scientific', period='2026')
+        template = ReportTemplate.objects.get(pk='scientific-v1')
+        snapshot = {'id': template.pk, 'title': template.title, 'description': template.description, 'type': template.type, 'version': template.version, 'fields': template.fields, 'form_schema': template.form_schema}
+        self.report = Report.objects.create(owner=self.employee, title='Ilmiy hisobot', type='scientific', period='2026', template_version=template.version, template_snapshot=snapshot)
         self.report.activities.add(self.activity)
         self.client = APIClient()
         self.client.force_authenticate(user=self.employee)
@@ -123,6 +125,22 @@ class WorkflowTests(TestCase):
         self.client.force_authenticate(user=self.reviewer)
         self.assertEqual(self.client.get(f'/api/reports/{self.report.pk}/').status_code, 200)
         self.assertEqual(self.client.patch(f'/api/reports/{self.report.pk}/', {'title': 'Not allowed'}, format='json').status_code, 403)
+
+    def test_reviewer_can_submit_own_report_while_reviewing_department_reports(self):
+        self.submit()
+        self.client.force_authenticate(user=self.reviewer)
+        own_activity = Activity.objects.create(owner=self.reviewer, title='Reviewer article', category='article', date='2026-10-01', link='https://example.com/reviewer-article')
+        response = self.client.post('/api/reports/', {'title': 'Reviewer report', 'type': 'annual', 'period': '2026', 'activity_ids': [own_activity.pk]}, format='json')
+        self.assertEqual(response.status_code, 201, response.data)
+        own_report_id = response.data['id']
+
+        response = self.client.post(f'/api/reports/{own_report_id}/submit/', {}, format='json')
+
+        self.assertEqual(response.status_code, 200, response.data)
+        self.assertEqual(response.data['status'], 'submitted')
+        visible_ids = [report['id'] for report in self.client.get('/api/workspace/').data['reports']]
+        self.assertCountEqual(visible_ids, [self.report.pk, own_report_id])
+        self.assertEqual(self.client.post(f'/api/reports/{own_report_id}/review/', {'decision': 'approved'}, format='json').status_code, 404)
 
     def test_return_requires_comment_and_invalid_transition_rejected(self):
         self.submit()

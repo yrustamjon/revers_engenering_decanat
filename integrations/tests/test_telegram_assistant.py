@@ -212,6 +212,54 @@ class AssistantTests(unittest.TestCase):
         self.wait_state(1, 'cancelled')
         self.assertEqual(self.worker.queue.job(1)['cancel_requested'], 1)
 
+    def test_cancel_persistence_failure_does_not_signal_or_partially_commit(self):
+        self.worker.process(self.update(1, '/task First task'))
+        first = self.worker.queue.claim()
+        self.worker._current = first
+        self.worker._cancel = threading.Event()
+        cancellation = self.worker._cancel
+        update = self.update(2, '/cancel')
+        with patch.object(self.worker.queue, '_outbox', side_effect=sqlite3.OperationalError('Disk unavailable')):
+            with self.assertRaises(sqlite3.Error):
+                self.worker.process(update)
+        self.assertFalse(cancellation.is_set())
+        self.assertEqual(self.worker.queue.job(first['id'])['cancel_requested'], 0)
+        self.assertFalse(self.worker.queue.has_update(2))
+        self.assertEqual(self.store.offset, 2)
+        self.worker.process(update)
+        self.assertTrue(cancellation.is_set())
+        self.assertEqual(self.worker.queue.job(first['id'])['cancel_requested'], 1)
+        self.assertTrue(self.worker.queue.has_update(2))
+
+    def test_cancel_committed_before_signal_failure_does_not_cancel_next_job_on_replay(self):
+        self.worker.process(self.update(1, '/task First task'))
+        self.worker.process(self.update(2, '/task Next task'))
+        first = self.worker.queue.claim()
+        self.worker._current = first
+        self.worker._cancel = threading.Event()
+        update = self.update(3, '/cancel')
+        # Model a crash after the durable outcome but before the native process
+        # receives its cancellation event and before the Telegram offset moves.
+        with patch.object(self.worker._cancel, 'set', side_effect=RuntimeError('Simulated crash')):
+            with self.assertRaises(RuntimeError):
+                self.worker.process(update)
+        self.assertTrue(self.worker.queue.has_update(3))
+        self.assertEqual(self.worker.queue.job(first['id'])['cancel_requested'], 1)
+        self.assertEqual(self.store.offset, 3)
+
+        self.worker.queue = assistant.DurableQueue(self.directory)
+        self.assertEqual(self.worker.queue.job(first['id'])['state'], 'interrupted')
+        second = self.worker.queue.claim()
+        self.worker._current = second
+        self.worker._cancel = threading.Event()
+        self.worker.process(update)
+        self.assertFalse(self.worker._cancel.is_set())
+        self.assertEqual(self.worker.queue.job(second['id'])['cancel_requested'], 0)
+        self.assertEqual(self.store.offset, 4)
+        with self.worker.queue.connection() as connection:
+            outcomes = connection.execute('SELECT job_id FROM outbox WHERE event_key=?', ('command:3',)).fetchall()
+        self.assertEqual([row['job_id'] for row in outcomes], [first['id']])
+
     def test_new_refuses_queued_work_and_resets_only_idle_once(self):
         self.worker.process(self.update(1, 'Salom'))
         self.worker.process(self.update(2, '/new'))

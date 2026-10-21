@@ -1,8 +1,8 @@
 # UniFlow — ishchi serverga chiqarish
 
-Ushbu konfiguratsiya React build, Nginx, Gunicorn/Django va PostgreSQL uchun tayyorlangan. Lokal ishlab chiqishdagi SQLite va demo kabinetlar ishlab chiqarish muhiti uchun ishlatilmaydi.
+Ushbu konfiguratsiya React build, Nginx, Gunicorn/Django, PostgreSQL va umumiy Redis cache uchun tayyorlangan. Lokal ishlab chiqishdagi SQLite va demo kabinetlar ishlab chiqarish muhiti uchun ishlatilmaydi.
 
-**Joriy tekshiruv chegarasi:** Python paketlari o‘rnatilgan, Django sozlamalari va testlari lokal mashinada tekshiriladi. Docker obrazi yoki haqiqiy domen orqali ishga tushirish alohida bajarilmaguncha bu hujjat ularning muvaffaqiyatini tasdiqlamaydi.
+**2026-10-22 tekshiruvi:** backend/frontend Docker obrazlari yig‘ildi; 40 backend testi PostgreSQL 17 va Redis 8 bilan o‘tdi. Alohida sinov Compose loyihasida to‘rtala xizmat `healthy` bo‘ldi; Nginx bosh sahifasi/health, sessiyasiz API va private media chegarasi tekshirildi. Haqiqiy domen/HTTPS, ishchi host va zaxiradan tiklash hali tekshirilmagan. [Qolgan ishlar](REMAINING_WORK.md) dagi P1 shartlari haqiqiy hujjatlar bilan pilotdan oldin bajariladi.
 
 ## Tuzilma
 
@@ -13,10 +13,13 @@ Foydalanuvchi → haqiqiy domen / HTTPS edge → host 127.0.0.1:8080
                                             ├ /api/ va /admin/ → Gunicorn/Django
                                             └ /static/ → Django static volume
                                                                ├ PostgreSQL
+                                                               ├ Redis
                                                                └ private-media volume
 ```
 
 Ma’lumotlar bazasi va backend portlari tashqariga chiqarilmagan. `private-media` faqat backendga ulangan; Nginx `/media/` manzilini ochmaydi. Faylni olishda sessiya va foydalanuvchi vakolati API orqali tekshiriladi.
+
+Redis ham tashqariga port chiqarmaydi; login va DRF urinish hisoblagichlari barcha workerlar uchun umumiy. Compose `DJANGO_REDIS_URL=redis://cache:6379/0` ni beradi; boshqa joylashtirishda haqiqiy manzilni kiriting. Redisda hujjat yoki asosiy sessiya saqlanmaydi; uning restarti urinish hisoblagichlarini yangilaydi. `noeviction` to‘lib qolgan cache yozuvlarini jim o‘chirib yubormaydi; cache xotirasi va xatolari kuzatilishi kerak.
 
 ## Kerakli konfiguratsiya
 
@@ -64,16 +67,26 @@ docker compose exec backend python manage.py createsuperuser
 
 `compose config` ning odatiy to‘liq chiqishini umumiy logga yubormang: unda environment qiymatlari ko‘rinishi mumkin. Yuqorida faqat `--quiet` tekshiruv berilgan.
 
+TLSni tekshiradigan cloud proxy orqali build qilinsa, uning ishonchli umumiy CA bundle faylini BuildKit secret sifatida bering. Sertifikat image qatlamiga ko‘chirilmaydi; TLS tekshiruvi o‘chirilmaydi:
+
+```sh
+UNIFLOW_BUILD_CA_BUNDLE=/etc/ssl/certs/ca-certificates.crt docker compose -f compose.yaml -f deploy/compose.proxy.yaml build
+```
+
+Bu qo‘shimcha fayl faqat proxy talab qiladigan build uchun; oddiy hostda odatiy build yetarli.
+
 Backend boshlanishida migratsiya va `collectstatic` bajariladi. Demo seed ishlamaydi. Superuser orqali yangi xodim, tekshiruvchi, bo‘lim va haqiqiy shablonlar yaratiladi. Ishchi hisoblar va shakllarni kiriting; demo ma’lumotlarni haqiqiy ma’lumot deb ko‘chirmang.
 
 ## Tayyorlikni tekshirish
+
+**Mijoz IP sharti:** hozir login `REMOTE_ADDR` ni hisoblaydi. Nginx ortida bu barcha xodim uchun umumiy proxy manzili bo‘lishi mumkin. Haqiqiy edge/subnet asosida IP ishonch zanjiri va mijoz sarlavhasini almashtirish sozlanib, turli IP hamda soxta header sinovi bajarilmaguncha ushbu joylashtirishni ko‘p foydalanuvchiga tayyor deb hisoblamang. Tasodifiy `X-Forwarded-For` qiymatiga ishonish yechim emas.
 
 ```sh
 curl --fail http://127.0.0.1:8080/healthz
 docker compose exec backend python manage.py check --deploy
 ```
 
-`/healthz` Nginx ishlayotganini tekshiradi; Compose backend probe esa PostgreSQLga `SELECT 1` va Gunicornning sessiya endpointiga javobini tekshiradi. Bular hujjat jarayoni yoki DB zaxirasini to‘liq tekshirmaydi. `check --deploy` dagi HSTS preload ogohlantirishi domenni brauzerlarning doimiy preload ro‘yxatiga kiritish uchun alohida qaror kerakligini bildiradi; uni faqat tekshiruvni jim qilish uchun yoqmang.
+`/healthz` Nginx ishlayotganini tekshiradi; Compose backend probe esa PostgreSQLga `SELECT 1`, Redisga `PING` va Gunicornning sessiya endpointiga javobini tekshiradi. Bular hujjat jarayoni yoki DB zaxirasini to‘liq tekshirmaydi. `check --deploy` dagi HSTS preload ogohlantirishi domenni brauzerlarning doimiy preload ro‘yxatiga kiritish uchun alohida qaror kerakligini bildiradi; uni faqat tekshiruvni jim qilish uchun yoqmang.
 
 Haqiqiy HTTPS domen orqali quyidagilar bajarilsin:
 

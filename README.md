@@ -25,6 +25,8 @@ TATU nomi foydalanish konteksti sifatida olingan. Namuna ma’lumotlari universi
 
 Talablar: **Python 3.12+**, **Node.js 22+**, npm. Python virtual muhiti, SQLite va lokal fayl saqlash ishlab chiqish uchun ishlatiladi.
 
+Windows PowerShell uchun [alohida o‘rnatish va ishga tushirish qo‘llanmasi](docs/WINDOWS.md) bor.
+
 Repozitoriy ildizidan:
 
 ```bash
@@ -77,6 +79,7 @@ docs/           Mahsulot rejasi, API va ishga chiqarish hujjatlari
 ```
 
 - [To‘liq mahsulot rejasi](docs/PRODUCT_PLAN.md)
+- [Tekshiruv natijasi va qolgan ishlarning ustuvor rejasi](docs/REMAINING_WORK.md)
 - [API shartnomasi](docs/api-contract.md)
 - [Backend va autentifikatsiya](backend/README.md)
 - [Telegram integratsiyasi](integrations/README.md)
