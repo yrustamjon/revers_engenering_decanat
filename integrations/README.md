@@ -1,5 +1,7 @@
 # Telegram loyiha boti
 
+Quyidagi worker holat va xabarlar qutisi uchun. Codex bilan davomli suhbat va `/task` topshiriqlari uchun [Telegram assistant qo‘llanmasi](../docs/TELEGRAM_ASSISTANT.md) va `scripts/telegram-assistant.sh` mavjud. Ikkala worker’ni bir token bilan bir vaqtda polling rejimida ishlatmang.
+
 Bu ixtiyoriy Python worker loyiha holatini yuboradi va faqat oldindan belgilangan **bitta shaxsiy chat** xabarlarini qabul qiladi. Xabarlar AI so‘rovi, terminal buyrug‘i yoki dastur sifatida bajarilmaydi. Qabul tasdig‘i xabarni inson yoki faol yordamchi o‘qiganini anglatmaydi.
 
 ## Sozlash

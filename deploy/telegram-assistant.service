@@ -1,0 +1,21 @@
+[Unit]
+Description=UniFlow private Telegram Codex assistant
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=uniflow
+Group=uniflow
+# Install the repository and sign into Codex as this service user first.
+WorkingDirectory=/srv/uniflow
+ExecStart=/bin/bash /srv/uniflow/scripts/telegram-assistant.sh --poll
+Restart=on-failure
+RestartSec=10
+TimeoutStopSec=20
+UMask=0077
+NoNewPrivileges=true
+PrivateTmp=true
+
+[Install]
+WantedBy=multi-user.target

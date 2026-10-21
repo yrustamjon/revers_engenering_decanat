@@ -19,6 +19,7 @@ TATU nomi foydalanish konteksti sifatida olingan. Namuna ma’lumotlari universi
 - **Hujjat yaxlitligi:** tekshiruvdagi yoki tasdiqlangan hisobot va uning dalillarini tahrirlash bloklanadi. Fayllar autentifikatsiyalangan endpoint orqali yuklab olinadi.
 - **Bildirishnomalar, umumiy qidiruv, chop etish va yordam qo‘llanmasi.**
 - **Ixtiyoriy Telegram worker:** faqat belgilangan shaxsiy chat uchun loyiha holati, xabar qabul qilish va yuborish. Kiruvchi xabarlar buyruq sifatida bajarilmaydi.
+- **Telegram Codex assistant:** alohida davomli suhbat, oddiy savollar uchun o‘qish rejimi, `/task` uchun loyiha ustida ishlash, navbat va bekor qilish. Haqiqiy model kirishi va ishlayotgan xizmat talab qilinadi.
 
 ## Mahalliy ishga tushirish
 
@@ -79,6 +80,7 @@ docs/           Mahsulot rejasi, API va ishga chiqarish hujjatlari
 - [API shartnomasi](docs/api-contract.md)
 - [Backend va autentifikatsiya](backend/README.md)
 - [Telegram integratsiyasi](integrations/README.md)
+- [Telegram orqali Codex bilan suhbat va loyiha topshiriqlari](docs/TELEGRAM_ASSISTANT.md)
 - [PostgreSQL, Docker va HTTPS orqali ishga chiqarish](docs/DEPLOYMENT.md)
 
 ## Amaliy joriy qilish chegaralari
