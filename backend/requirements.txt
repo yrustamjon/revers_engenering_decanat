@@ -7,3 +7,4 @@ packaging==26.3
 psycopg[binary]==3.2.13
 typing_extensions==4.16.0
 redis==8.1.0
+whitenoise==6.12.0

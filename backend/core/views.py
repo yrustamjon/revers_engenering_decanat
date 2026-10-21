@@ -306,6 +306,8 @@ class WorkItemViewSet(viewsets.ModelViewSet):
 
 @api_view(['POST'])
 def upload_attachment(request):
+    if not settings.UPLOADS_ENABLED:
+        return Response({'detail': 'Fayl saqlash xizmati hali sozlanmagan. Hozircha manba havolasidan foydalaning.'}, status=503)
     file = request.FILES.get('file')
     if file is None:
         raise ValidationError({'file': 'Faylni tanlang.'})

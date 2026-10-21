@@ -85,6 +85,7 @@ docs/           Mahsulot rejasi, API va ishga chiqarish hujjatlari
 - [Telegram integratsiyasi](integrations/README.md)
 - [Telegram orqali Codex bilan suhbat va loyiha topshiriqlari](docs/TELEGRAM_ASSISTANT.md)
 - [PostgreSQL, Docker va HTTPS orqali ishga chiqarish](docs/DEPLOYMENT.md)
+- [Render’da bitta Web Service orqali saytni joylash](docs/RENDER.md)
 
 ## Amaliy joriy qilish chegaralari
 
