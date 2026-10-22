@@ -7,19 +7,21 @@ Talablar: **Python 3.12 yoki yangi**, **Node.js 22 yoki yangi**, Git va Windows 
 PowerShellda loyiha papkasiga o‘ting. Quyidagi buyruqlarni repozitoriy ildizida bajaring:
 
 ```powershell
-.\scripts\setup.ps1 -Demo
+.\scripts\setup.ps1
+.\.venv\Scripts\python.exe backend/manage.py createsuperuser
 .\scripts\dev.ps1
 ```
 
 Brauzerda **http://127.0.0.1:5173** ni oching. Terminal ochiq tursin; `Ctrl+C` shu skript boshlagan ikkala xizmatni to‘xtatadi. 8000 yoki 5173 porti band bo‘lsa, skript boshqa jarayonni to‘xtatmaydi va boshqa portni yashirincha tanlamaydi. Band portdagi oldingi dev xizmatini uning terminalidan to‘xtating.
 
-`setup.ps1` virtual muhit yaratadi, Python va frontend paketlarini o‘rnatadi, migratsiya, frontend build va Django tekshiruvini bajaradi. `-Demo` namuna hisoblar va hujjatlarni qo‘shadi. Ularni qayta seed qilish mavjud tahrirlarni saqlaydi. Virtual muhitni faollashtirish shart emas.
+`setup.ps1` virtual muhit yaratadi, Python va frontend paketlarini o‘rnatadi, migratsiya, frontend build va Django tekshiruvini bajaradi. Keyin `createsuperuser` bilan haqiqiy administrator ochiladi. Login formasida shu hisob ishlatiladi; demo orqali avtomatik kirish yo‘q. Virtual muhitni faollashtirish shart emas.
 
 Agar PowerShell `running scripts is disabled` desa, faqat shu terminal sessiyasi uchun:
 
 ```powershell
 Set-ExecutionPolicy -Scope Process -ExecutionPolicy RemoteSigned
-.\scripts\setup.ps1 -Demo
+.\scripts\setup.ps1
+.\.venv\Scripts\python.exe backend/manage.py createsuperuser
 .\scripts\dev.ps1
 ```
 
@@ -57,11 +59,13 @@ Tekshiruvlar:
 npm.cmd run build --prefix frontend
 ```
 
-Brauzer sinovlari uchun Chromium o‘rnating va ikkala xizmat ishlayotgan namuna muhitida sinovlarni bajaring:
+Brauzer sinovlari uchun Chromium o‘rnating va ikkala xizmat ishlayotgan alohida sinov bazasida sinovlarni bajaring:
 
 ```powershell
 Set-Location frontend
 npx.cmd playwright install chromium
+$env:UNIFLOW_E2E = "1"
+$env:E2E_PYTHON = (Resolve-Path ..\.venv\Scripts\python.exe).Path
 npm.cmd run test:e2e
 ```
 

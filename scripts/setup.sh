@@ -2,12 +2,14 @@
 set -euo pipefail
 repo_root="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$repo_root"
-python3 -m venv .venv
+runtime_python="${UNIFLOW_PYTHON:-python3}"
+"$runtime_python" -m venv .venv
 .venv/bin/python -m pip install --disable-pip-version-check --cache-dir "$repo_root/.local/pip-cache" -r backend/requirements.txt
 npm ci --prefix frontend --cache "$repo_root/.local/npm-cache" --no-audit --no-fund
 .venv/bin/python backend/manage.py migrate --noinput
 if [[ "${1:-}" == "--demo" ]]; then
-  .venv/bin/python backend/manage.py seed_demo
+  echo "Demo setup retired. Create a real administrator with .venv/bin/python backend/manage.py createsuperuser." >&2
+  exit 1
 fi
 npm run build --prefix frontend
 .venv/bin/python backend/manage.py check

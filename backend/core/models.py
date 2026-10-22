@@ -2,6 +2,7 @@ import uuid
 from pathlib import Path
 from django.conf import settings
 from django.db import models
+from django.db.models.functions import Lower
 
 
 class Profile(models.Model):
@@ -16,6 +17,9 @@ class Profile(models.Model):
     employee_id = models.CharField(max_length=30, blank=True)
     experience_years = models.PositiveSmallIntegerField(default=0)
     employment_type = models.CharField(max_length=80, default="Asosiy ish joyi · 1 stavka")
+
+    class Meta:
+        constraints = [models.UniqueConstraint(Lower('employee_id'), condition=~models.Q(employee_id=''), name='unique_nonblank_employee_id')]
 
     @property
     def initials(self):
@@ -67,6 +71,7 @@ class Report(models.Model):
     template_version = models.CharField(max_length=30, blank=True)
     template_snapshot = models.JSONField(default=dict, blank=True)
     extra_data = models.JSONField(default=dict, blank=True)
+    review_department = models.CharField(max_length=180, blank=True)
 
     class Meta:
         ordering = ['-updated_at', '-id']
@@ -81,6 +86,32 @@ class History(models.Model):
 
     class Meta:
         ordering = ['created_at', 'id']
+
+
+class Submission(models.Model):
+    report = models.ForeignKey(Report, on_delete=models.PROTECT, related_name='submissions')
+    number = models.PositiveIntegerField()
+    actor = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT)
+    snapshot = models.JSONField()
+    attachments = models.ManyToManyField(Attachment, related_name='submissions', blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['number']
+        constraints = [models.UniqueConstraint(fields=['report', 'number'], name='unique_report_submission')]
+
+
+class AuditEvent(models.Model):
+    actor = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT)
+    action = models.CharField(max_length=40)
+    resource = models.CharField(max_length=80)
+    object_id = models.CharField(max_length=100)
+    before = models.JSONField(default=dict)
+    after = models.JSONField(default=dict)
+    created_at = models.DateTimeField(auto_now_add=True, db_index=True)
+
+    class Meta:
+        ordering = ['-created_at', '-id']
 
 
 class WorkItem(models.Model):
@@ -114,6 +145,7 @@ class Department(models.Model):
 
     class Meta:
         ordering = ['name', 'id']
+        constraints = [models.UniqueConstraint(Lower('name'), name='unique_department_name_casefold')]
 
 
 class ReportTemplate(models.Model):

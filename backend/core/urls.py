@@ -9,9 +9,9 @@ router.register('work-items', views.WorkItemViewSet, basename='work-item')
 router.register('admin/users', admin_api.InstitutionUserViewSet, basename='admin-user')
 router.register('admin/departments', admin_api.DepartmentViewSet, basename='admin-department')
 router.register('admin/templates', admin_api.TemplateViewSet, basename='admin-template')
+router.register('admin/audit', admin_api.AuditEventViewSet, basename='admin-audit')
 urlpatterns = [
     path('auth/session/', views.session_view),
-    path('auth/demo/', views.demo_login),
     path('auth/login/', views.login_view),
     path('auth/logout/', views.logout_view),
     path('auth/password/', admin_api.change_password),

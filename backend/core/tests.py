@@ -216,6 +216,6 @@ class WorkflowTests(TestCase):
         self.assertEqual(employee.activities.count(), count)
         self.assertEqual(activity.description, 'User edit must survive reseeding')
         client = APIClient()
-        self.assertEqual(client.post('/api/auth/demo/', {'role': 'employee'}, format='json').status_code, 200)
+        self.assertEqual(client.post('/api/auth/demo/', {'role': 'employee'}, format='json').status_code, 404)
         with override_settings(DEBUG=False, SECURE_SSL_REDIRECT=False):
             self.assertEqual(client.post('/api/auth/demo/', {'role': 'reviewer'}, format='json').status_code, 404)

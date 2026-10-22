@@ -21,6 +21,7 @@ INSTALLED_APPS = [
 ]
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
+    'core.security.PrivateResponseMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
@@ -89,7 +90,7 @@ REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': ['rest_framework.authentication.SessionAuthentication'],
     'DEFAULT_PERMISSION_CLASSES': ['rest_framework.permissions.IsAuthenticated'],
     'DEFAULT_RENDERER_CLASSES': ['rest_framework.renderers.JSONRenderer'],
-    'DEFAULT_THROTTLE_CLASSES': ['rest_framework.throttling.AnonRateThrottle', 'rest_framework.throttling.UserRateThrottle'],
+    'DEFAULT_THROTTLE_CLASSES': ['core.security.TrustedAnonThrottle', 'core.security.TrustedUserThrottle'],
     'DEFAULT_THROTTLE_RATES': {'anon': '60/min', 'user': '600/min'},
 }
 CSRF_TRUSTED_ORIGINS = [v.strip() for v in os.environ.get('DJANGO_CSRF_TRUSTED_ORIGINS', ('https://' + RENDER_HOST) if RENDER_HOST else ('http://localhost:5173,http://127.0.0.1:5173' if DEBUG else '')).split(',') if v.strip()]
@@ -100,6 +101,9 @@ if not DEBUG and not CSRF_TRUSTED_ORIGINS:
 if os.environ.get('DJANGO_TRUST_PROXY') == '1':
     SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
 SESSION_COOKIE_HTTPONLY = True
+SESSION_COOKIE_AGE = 8 * 60 * 60
+SESSION_EXPIRE_AT_BROWSER_CLOSE = True
+TRUSTED_PROXY_CIDRS = [value.strip() for value in os.environ.get('DJANGO_TRUSTED_PROXY_CIDRS', '').split(',') if value.strip()]
 SESSION_COOKIE_SAMESITE = 'Lax'
 CSRF_COOKIE_SAMESITE = 'Lax'
 SESSION_COOKIE_SECURE = not DEBUG

@@ -1,6 +1,6 @@
 from django.contrib.auth import get_user_model
 from rest_framework import serializers
-from .models import Activity, Attachment, History, Notification, Profile, Report, ReportTemplate, WorkItem
+from .models import Activity, Attachment, History, Notification, Profile, Report, ReportTemplate, Submission, WorkItem
 
 
 DEMO_USERNAMES = {'demo_employee', 'demo_reviewer', 'demo_administrator'}
@@ -83,7 +83,14 @@ class HistorySerializer(serializers.ModelSerializer):
         fields = ['id', 'action', 'actor_name', 'comment', 'created_at']
 
 
+class SubmissionSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Submission
+        fields = ['id', 'number', 'snapshot', 'created_at']
+
+
 class ReportSerializer(serializers.ModelSerializer):
+    submissions = SubmissionSerializer(many=True, read_only=True)
     activity_ids = serializers.PrimaryKeyRelatedField(source='activities', queryset=Activity.objects.all(), many=True, required=False)
     history = HistorySerializer(many=True, read_only=True)
     owner_name = serializers.CharField(source='owner.get_full_name', read_only=True)
@@ -92,8 +99,8 @@ class ReportSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Report
-        fields = ['id', 'title', 'type', 'period', 'status', 'activity_ids', 'comment', 'due_date', 'submitted_at', 'created_at', 'updated_at', 'owner_name', 'owner_id', 'history', 'template_id', 'template_version', 'template_snapshot', 'extra_data']
-        read_only_fields = ['id', 'status', 'comment', 'submitted_at', 'created_at', 'updated_at', 'owner_name', 'history', 'template_version', 'template_snapshot']
+        fields = ['id', 'title', 'type', 'period', 'status', 'activity_ids', 'comment', 'due_date', 'submitted_at', 'created_at', 'updated_at', 'owner_name', 'owner_id', 'history', 'template_id', 'template_version', 'template_snapshot', 'extra_data', 'submissions', 'review_department']
+        read_only_fields = ['id', 'status', 'comment', 'submitted_at', 'created_at', 'updated_at', 'owner_name', 'history', 'template_version', 'template_snapshot', 'review_department']
 
     def validate_activity_ids(self, values):
         if len({v.pk for v in values}) != len(values):

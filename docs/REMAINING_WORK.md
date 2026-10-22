@@ -1,5 +1,7 @@
 # UniFlow: tekshiruv natijasi va qolgan ishlar
 
+**MVP yangilanishi:** P1-01 (yuborish nusxalari), P1-02 (tarixni saqlash), P1-04 (administrator auditi), T-02 (DB noyobligi), T-08 (demo interfeys) yopildi. P1-03 uchun hisobotning bo‘lim yo‘li muzlatiladi va rename saqlanadi; to‘liq tashkiliy FK modeli keyingi kengaytirishdir. P1-05 uchun trusted-proxy CIDR mexanizmi bor, haqiqiy edge konfiguratsiyasi hostda tekshiriladi. Quyidagi dastlabki topilmalar audit tarixi sifatida saqlangan. Joriy mezonlar: [MVP](MVP.md), [DevSecOps](DEVSECOPS.md).
+
 Holat: **2026-10-22, Toshkent vaqti**. React interfeysi, DRF API, rollar, hujjat aylanishi, paketlar, Docker konfiguratsiyasi va Telegram kodi tekshirildi. TATUning rasmiy reglamenti va tashqi integratsiyalar tekshirilmagan.
 
 Ishlayotgan asosiy jarayon: xodim portfelga dalil kiritadi → saqlangan shablon asosida hisobot tayyorlaydi → mas’ulga yuboradi → izoh bilan qaytariladi yoki tasdiqlanadi → tasdiqlangan hujjat arxivga tushadi. Profil, ish rejasi va administrator boshqaruvi mavjud. Umumuniversitet jarayonlari uchun quyidagi ishlar qoladi.

@@ -14,7 +14,11 @@ export async function api<T = unknown>(path: string, options: RequestInit = {}):
   const headers = new Headers(options.headers);
   if (options.body && !(options.body instanceof FormData)) headers.set('Content-Type', 'application/json');
   if (token) headers.set('X-CSRFToken', decodeURIComponent(token));
-  const response = await fetch(`/api/${path.replace(/^\//, '')}`, { ...options, headers, credentials: 'same-origin' });
+  const response = await fetch(`/api/${path.replace(/^\//, '')}`, { cache: 'no-store', ...options, headers, credentials: 'same-origin' });
+  if (!['auth/login/', 'auth/session/'].includes(path) && [401,403].includes(response.status)) {
+    const session = response.status===401 ? response : await fetch('/api/auth/session/', {credentials:'same-origin',cache:'no-store'});
+    if (session.status===401) window.dispatchEvent(new Event('uniflow:session-expired'));
+  }
   if (response.status === 204) return undefined as T;
   const data = await response.json().catch(() => ({ detail: 'Server javobini o‘qib bo‘lmadi.' }));
   if (!response.ok) throw new ApiError(response.status, data);

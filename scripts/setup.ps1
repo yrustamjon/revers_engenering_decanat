@@ -2,6 +2,7 @@
 param([switch]$Demo)
 
 $ErrorActionPreference = 'Stop'
+if ($Demo) { throw 'Demo setup retired. Run setup.ps1, then .venv\Scripts\python.exe backend/manage.py createsuperuser.' }
 $repoRoot = Split-Path -Parent $PSScriptRoot
 
 function Invoke-Checked {
@@ -38,9 +39,6 @@ try {
     Invoke-Checked $venvPython @('-m', 'pip', 'install', '--disable-pip-version-check', '--cache-dir', '.local/pip-cache', '-r', 'backend/requirements.txt')
     Invoke-Checked $npm @('ci', '--prefix', 'frontend', '--cache', '.local/npm-cache', '--no-audit', '--no-fund')
     Invoke-Checked $venvPython @('backend/manage.py', 'migrate', '--noinput')
-    if ($Demo) {
-        Invoke-Checked $venvPython @('backend/manage.py', 'seed_demo')
-    }
     Invoke-Checked $npm @('run', 'build', '--prefix', 'frontend')
     Invoke-Checked $venvPython @('backend/manage.py', 'check')
     Write-Host 'UniFlow setup complete. Start with: .\scripts\dev.ps1'

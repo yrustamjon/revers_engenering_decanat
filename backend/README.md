@@ -7,11 +7,11 @@ python -m venv .venv
 .venv/bin/pip install -r backend/requirements.txt
 cd backend
 ../.venv/bin/python manage.py migrate
-../.venv/bin/python manage.py seed_demo
+../.venv/bin/python manage.py createsuperuser
 ../.venv/bin/python manage.py runserver 127.0.0.1:8000 --noreload
 ```
 
-Seed data is illustrative; it is not TATU's official records or internal regulations. Repeating `seed_demo` preserves existing users' edits and reports. Seeded accounts have no password and can only use the DEBUG-only demo endpoint. Use Django's `createsuperuser` or controlled admin provisioning for real accounts.
+Start with a real administrator and provision employees through the administration API. There is no demo authentication endpoint or automatic frontend login. The legacy seed command is retained only for old data fixtures; its accounts cannot authenticate. Browser tests use explicit password-based test accounts and an isolated database.
 
 Tests:
 
@@ -26,7 +26,7 @@ Profile organization and roles are read-only in the employee API. Reviewers see 
 
 ## Administration
 
-`python manage.py createsuperuser` provisions the first real administrator. Both Django staff/superuser flags and the `administrator` profile role map to institutional administration capabilities. Seed data also includes a development-only Madina Usmonova demo administrator. Session responses include `is_demo` and `capabilities`; demo account passwords cannot be changed.
+`python manage.py createsuperuser` provisions the first real administrator. Both Django staff/superuser flags and the `administrator` profile role map to institutional administration capabilities. Legacy demo identities are not login accounts. Session responses include `is_demo` and `capabilities`; demo account passwords cannot be changed.
 
 Administrator-only endpoints:
 
@@ -49,4 +49,4 @@ Up to 20 unique field keys matching `^[a-z][a-z0-9_]{0,49}$` are accepted. Field
 
 `POST /api/auth/password/` accepts `current_password` and `new_password`. It validates both, rejects reuse, preserves the current session and invalidates previous password-based session hashes. Login attempts are limited per hashed username/IP pair and by a separate broad IP ceiling. Development uses a process-local cache. Production requires `DJANGO_REDIS_URL` and uses shared Redis counters across workers; Compose supplies an internal Redis service. A separate PostgreSQL/Redis CI job verifies workflow SQL and cache sharing across independent Python processes. The broad IP limit still needs the actual deployment’s trusted client-IP configuration (see `docs/REMAINING_WORK.md`).
 
-For deployment, set `DJANGO_DEBUG=0`, supply a unique `DJANGO_SECRET_KEY`, explicit `DJANGO_ALLOWED_HOSTS` and `DJANGO_CSRF_TRUSTED_ORIGINS`, use HTTPS and a production WSGI server. The demo endpoint and seed command are disabled outside DEBUG. SQLite and local files are development defaults; production needs a managed database, protected durable file storage, backups, a shared rate-limit cache, and your actual institutional approval rules. This version implements one reviewer decision per report, not multi-level legal signing or payroll.
+For deployment, set `DJANGO_DEBUG=0`, supply a unique `DJANGO_SECRET_KEY`, explicit `DJANGO_ALLOWED_HOSTS` and `DJANGO_CSRF_TRUSTED_ORIGINS`, use HTTPS and a production WSGI server. The demo authentication endpoint has been removed; test fixture creation is disabled outside DEBUG. SQLite and local files are development defaults; production needs a managed database, protected durable file storage, backups, a shared rate-limit cache, and your actual institutional approval rules. This version implements one reviewer decision per report, not multi-level legal signing or payroll.

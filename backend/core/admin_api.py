@@ -1,14 +1,15 @@
 from django.contrib.auth import get_user_model, update_session_auth_hash
 from django.contrib.auth.password_validation import validate_password
 from django.core.exceptions import ValidationError as DjangoValidationError
-from django.db import transaction
+from django.db import IntegrityError, transaction
 from django.db.models import Q
 from rest_framework import serializers, viewsets
 from rest_framework.decorators import api_view
 from rest_framework.exceptions import PermissionDenied, ValidationError
 from rest_framework.permissions import BasePermission
 from rest_framework.response import Response
-from .models import Department, Profile, ReportTemplate
+from rest_framework.pagination import PageNumberPagination
+from .models import AuditEvent, Department, Profile, Report, ReportTemplate
 from .serializers import DEMO_USERNAMES, effective_role, is_administrator
 
 
@@ -38,6 +39,7 @@ class DepartmentSerializer(serializers.ModelSerializer):
         old_name = instance.name
         instance = super().update(instance, validated_data)
         Profile.objects.filter(department=old_name).update(department=instance.name, faculty=instance.faculty)
+        Report.objects.filter(review_department=old_name).update(review_department=instance.name)
         return instance
 
 
@@ -182,7 +184,33 @@ class InstitutionUserSerializer(serializers.ModelSerializer):
         return instance
 
 
-class InstitutionUserViewSet(viewsets.ModelViewSet):
+class AuditedAdministration:
+    @transaction.atomic
+    def perform_create(self, serializer):
+        try:
+            with transaction.atomic():
+                instance = serializer.save()
+        except IntegrityError:
+            raise ValidationError({'detail':'Bu identifikator yoki nom allaqachon band. Ma’lumotni yangilab tekshiring.'}) from None
+        AuditEvent.objects.create(actor=self.request.user, action='created', resource=instance._meta.model_name,
+                                  object_id=str(instance.pk), after=dict(serializer.data))
+
+    @transaction.atomic
+    def perform_update(self, serializer):
+        before = dict(self.get_serializer(serializer.instance).data)
+        try:
+            with transaction.atomic():
+                instance = serializer.save()
+        except IntegrityError:
+            raise ValidationError({'detail':'Bu identifikator yoki nom allaqachon band. Ma’lumotni yangilab tekshiring.'}) from None
+        after = dict(serializer.data)
+        if 'password' in self.request.data:
+            after['password_changed'] = True
+        AuditEvent.objects.create(actor=self.request.user, action='updated', resource=instance._meta.model_name,
+                                  object_id=str(instance.pk), before=before, after=after)
+
+
+class InstitutionUserViewSet(AuditedAdministration, viewsets.ModelViewSet):
     permission_classes = [IsInstitutionAdministrator]
     serializer_class = InstitutionUserSerializer
     http_method_names = ['get', 'post', 'patch', 'head', 'options']
@@ -197,18 +225,37 @@ class InstitutionUserViewSet(viewsets.ModelViewSet):
         return super().update(request, *args, **kwargs)
 
 
-class DepartmentViewSet(viewsets.ModelViewSet):
+class DepartmentViewSet(AuditedAdministration, viewsets.ModelViewSet):
     permission_classes = [IsInstitutionAdministrator]
     serializer_class = DepartmentSerializer
     queryset = Department.objects.all()
     http_method_names = ['get', 'post', 'patch', 'head', 'options']
 
 
-class TemplateViewSet(viewsets.ModelViewSet):
+class TemplateViewSet(AuditedAdministration, viewsets.ModelViewSet):
     permission_classes = [IsInstitutionAdministrator]
     serializer_class = TemplateSerializer
     queryset = ReportTemplate.objects.all()
     http_method_names = ['get', 'post', 'patch', 'head', 'options']
+
+
+class AuditEventSerializer(serializers.ModelSerializer):
+    actor_name = serializers.CharField(source='actor.username', read_only=True)
+
+    class Meta:
+        model = AuditEvent
+        fields = ['id', 'actor_name', 'action', 'resource', 'object_id', 'before', 'after', 'created_at']
+
+
+class AuditPagination(PageNumberPagination):
+    page_size = 50
+
+
+class AuditEventViewSet(viewsets.ReadOnlyModelViewSet):
+    permission_classes = [IsInstitutionAdministrator]
+    serializer_class = AuditEventSerializer
+    queryset = AuditEvent.objects.select_related('actor').all()
+    pagination_class = AuditPagination
 
 
 @api_view(['POST'])

@@ -21,7 +21,7 @@ function Assert-PortAvailable {
 }
 
 if (!(Test-Path $venvPython) -or !(Test-Path $viteScript)) {
-    throw 'Install dependencies first: .\scripts\setup.ps1 -Demo'
+    throw 'Install dependencies first: .\scripts\setup.ps1'
 }
 $node = (Get-Command node.exe -ErrorAction Stop).Source
 # Check both ports before starting either service. Vite also refuses port fallback.
@@ -32,7 +32,7 @@ Push-Location $repoRoot
 try {
     $services += Start-Process -FilePath $venvPython -ArgumentList @('backend/manage.py', 'runserver', '127.0.0.1:8000', '--noreload') -WorkingDirectory $repoRoot -NoNewWindow -PassThru
     # Starting Node directly lets cleanup own the Vite process, without npm/cmd wrappers.
-    $services += Start-Process -FilePath $node -ArgumentList @('frontend/node_modules/vite/bin/vite.js', '--host', '127.0.0.1', '--port', '5173', '--strictPort') -WorkingDirectory $repoRoot -NoNewWindow -PassThru
+    $services += Start-Process -FilePath $node -ArgumentList @('frontend/node_modules/vite/bin/vite.js', 'frontend', '--host', '127.0.0.1', '--port', '5173', '--strictPort') -WorkingDirectory $repoRoot -NoNewWindow -PassThru
     Write-Host 'UniFlow frontend: http://127.0.0.1:5173. Backend: http://127.0.0.1:8000.'
     Write-Host 'Keep this terminal open. Ctrl+C stops both services.'
     while ($true) {

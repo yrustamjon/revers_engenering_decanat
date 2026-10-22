@@ -19,9 +19,10 @@ from rest_framework import status, viewsets
 from rest_framework.decorators import action, api_view
 from rest_framework.exceptions import PermissionDenied, ValidationError
 from rest_framework.response import Response
-from .models import Activity, Attachment, History, Notification, Report, ReportTemplate, WorkItem
+from .models import Activity, Attachment, History, Notification, Report, ReportTemplate, Submission, WorkItem
 from .serializers import ActivitySerializer, AttachmentSerializer, NotificationSerializer, ProfileSerializer, ReportSerializer, WorkItemSerializer, effective_role, is_administrator, user_data
 from .admin_api import TemplateSerializer
+from .security import client_ip
 
 
 @ensure_csrf_cookie
@@ -42,24 +43,9 @@ def json_body(request):
 
 @require_POST
 @csrf_protect
-def demo_login(request):
-    if not settings.DEBUG:
-        return JsonResponse({'detail': 'Topilmadi.'}, status=404)
-    role = json_body(request).get('role', 'employee')
-    if role not in ['employee', 'reviewer', 'administrator']:
-        return JsonResponse({'role': ['Noto‘g‘ri rol.']}, status=400)
-    user = get_user_model().objects.filter(username=f'demo_{role}', is_active=True).first()
-    if not user:
-        return JsonResponse({'detail': 'Demo ma’lumotlari o‘rnatilmagan. seed_demo buyrug‘ini bajaring.'}, status=503)
-    login(request, user)
-    return JsonResponse({'user': user_data(user)})
-
-
-@require_POST
-@csrf_protect
 def login_view(request):
     body = json_body(request)
-    ip = request.META.get('REMOTE_ADDR', 'unknown')
+    ip = client_ip(request)
     username = body.get('username', '')
     password = body.get('password', '')
     ip_key = 'login-ip:' + hashlib.sha256(ip.encode()).hexdigest()
@@ -74,7 +60,7 @@ def login_view(request):
     if cache.get(key, 0) >= 10:
         return JsonResponse({'detail': 'Urinishlar ko‘p. 5 daqiqadan keyin qayta urinib ko‘ring.'}, status=429)
     user = authenticate(request, username=username, password=password)
-    if user is None:
+    if user is None or user.username in {'demo_employee', 'demo_reviewer', 'demo_administrator'}:
         if cache.add(key, 1, timeout=300) is False:
             cache.incr(key)
         return JsonResponse({'detail': 'Login yoki parol noto‘g‘ri.'}, status=401)
@@ -95,7 +81,7 @@ def reviewer_reports(user):
         return Report.objects.filter(status__in=['submitted', 'returned', 'approved']).exclude(owner=user)
     if user.profile.role != 'reviewer' or not user.profile.department:
         return Report.objects.none()
-    return Report.objects.filter(owner__profile__department=user.profile.department, status__in=['submitted', 'returned', 'approved']).exclude(owner=user)
+    return Report.objects.filter(Q(review_department=user.profile.department) | Q(review_department='', owner__profile__department=user.profile.department), status__in=['submitted', 'returned', 'approved']).exclude(owner=user)
 
 
 def accessible_reports(user):
@@ -151,7 +137,7 @@ def validate_report_extra_data(report):
 @api_view(['GET'])
 def workspace(request):
     user = request.user
-    reports = accessible_reports(user).select_related('owner').prefetch_related('activities', 'history__actor')
+    reports = accessible_reports(user).select_related('owner').prefetch_related('activities', 'history__actor', 'submissions')
     if is_administrator(user):
         activities = Activity.objects.all()
     elif user.profile.role == 'reviewer':
@@ -210,7 +196,7 @@ class ReportViewSet(viewsets.ModelViewSet):
     http_method_names = ['get', 'post', 'patch', 'delete', 'head', 'options']
 
     def get_queryset(self):
-        return accessible_reports(self.request.user).select_related('owner').prefetch_related('activities', 'history__actor')
+        return accessible_reports(self.request.user).select_related('owner').prefetch_related('activities', 'history__actor', 'submissions')
 
     def perform_create(self, serializer):
         report = serializer.save(owner=self.request.user, status='draft')
@@ -233,6 +219,8 @@ class ReportViewSet(viewsets.ModelViewSet):
     def perform_destroy(self, instance):
         report = Report.objects.select_for_update().get(pk=instance.pk)
         self.check_owner_editable(report)
+        if report.submitted_at or report.submissions.exists() or report.history.filter(action='submitted').exists():
+            raise ValidationError({'detail': 'Yuborilgan hisobot tarixini o‘chirib bo‘lmaydi. Qaytarilgan hisobotni tuzatib qayta yuboring.'})
         report.delete()
 
     @action(detail=True, methods=['post'])
@@ -260,10 +248,21 @@ class ReportViewSet(viewsets.ModelViewSet):
         if errors:
             raise ValidationError(errors)
         report.status = 'submitted'
+        if not report.submissions.exists():
+            report.review_department = request.user.profile.department
         report.submitted_at = timezone.now()
-        report.save(update_fields=['status', 'submitted_at', 'updated_at'])
+        report.save(update_fields=['status', 'submitted_at', 'updated_at', 'review_department'])
+        submission = Submission.objects.create(report=report, number=report.submissions.count() + 1, actor=request.user, snapshot={
+            'title': report.title, 'type': report.type, 'period': report.period,
+            'owner_name': request.user.get_full_name() or request.user.username,
+            'department': report.review_department, 'template_version': report.template_version,
+            'template_snapshot': report.template_snapshot, 'extra_data': report.extra_data,
+            'activities': ActivitySerializer(activities, many=True).data,
+        })
+        submission.attachments.set([activity.attachment_id for activity in activities if activity.attachment_id])
+        report._prefetched_objects_cache.pop('submissions', None)
         History.objects.create(report=report, actor=request.user, action='submitted', comment='Hisobot tekshiruvga yuborildi.')
-        reviewers = get_user_model().objects.filter(is_active=True).filter(Q(profile__role='reviewer', profile__department=request.user.profile.department) | Q(profile__role='administrator') | Q(is_staff=True) | Q(is_superuser=True)).exclude(pk=request.user.pk).distinct()
+        reviewers = get_user_model().objects.filter(is_active=True).filter(Q(profile__role='reviewer', profile__department=report.review_department) | Q(profile__role='administrator') | Q(is_staff=True) | Q(is_superuser=True)).exclude(pk=request.user.pk).distinct()
         Notification.objects.bulk_create([Notification(owner=u, report=report, title='Yangi hisobot tekshiruvga keldi', message=f'{request.user.get_full_name()}: {report.title}') for u in reviewers])
         return Response(ReportSerializer(report).data)
 
@@ -272,7 +271,7 @@ class ReportViewSet(viewsets.ModelViewSet):
     def review(self, request, pk=None):
         if effective_role(request.user) not in ['reviewer', 'administrator']:
             raise PermissionDenied('Tekshiruvchi vakolati kerak.')
-        report = get_object_or_404(reviewer_reports(request.user).select_for_update(), pk=pk)
+        report = get_object_or_404(reviewer_reports(request.user).select_for_update(of=('self',)), pk=pk)
         if report.status != 'submitted':
             raise ValidationError({'status': 'Faqat tekshiruvdagi hisobot bo‘yicha qaror berish mumkin.'})
         decision = request.data.get('decision')
@@ -322,7 +321,7 @@ def upload_attachment(request):
 @api_view(['GET'])
 def download_attachment(request, pk):
     attachment = get_object_or_404(Attachment, pk=pk)
-    can_review = is_administrator(request.user) or Activity.objects.filter(attachment=attachment, reports__in=reviewer_reports(request.user)).exists()
+    can_review = is_administrator(request.user) or Activity.objects.filter(attachment=attachment, reports__in=reviewer_reports(request.user)).exists() or attachment.submissions.filter(report__in=reviewer_reports(request.user)).exists()
     if attachment.owner_id != request.user.pk and not can_review:
         raise PermissionDenied('Bu faylni ko‘rishga ruxsat yo‘q.')
     try:

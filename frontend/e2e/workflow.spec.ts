@@ -1,9 +1,10 @@
 import { test, expect, type Page } from '@playwright/test';
+import { loginAs } from './accounts';
 
 const nonce = `${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
 
 async function ready(page: Page) {
-  await page.goto('/');
+  await loginAs(page, 'employee');
   await expect(page.getByRole('heading', { name: /Xayrli kun/ })).toBeVisible();
 }
 
@@ -12,8 +13,8 @@ async function navigate(page: Page, name: string) {
 }
 
 async function switchRole(page: Page, role: 'employee' | 'reviewer' | 'administrator') {
-  await page.locator('.topbar-user').click();
-  await page.getByRole('button', { name: role === 'administrator' ? 'Administrator sifatida ko‘rish' : role === 'reviewer' ? 'Tekshiruvchi sifatida ko‘rish' : 'Xodim sifatida ko‘rish' }).click();
+  await loginAs(page,role);
+  await page.goto('/#'+(role==='administrator'?'administration':role==='reviewer'?'review':'dashboard'));
   await expect(page.getByRole('heading', { name: role === 'administrator' ? 'Universitet boshqaruvi' : role === 'reviewer' ? 'Tekshiruv markazi' : /Xayrli kun/ })).toBeVisible();
 }
 
@@ -121,6 +122,9 @@ test('evidence upload and report return, correction, resubmission, approval and 
   await dialog.getByLabel('Tasdiqlash izohi (ixtiyoriy)').fill('Dalillar va hisobot davri tekshirildi.');
   await dialog.getByRole('button', { name: 'Tasdiqlashni yakunlash' }).click();
   await expect(dialog.getByText('Tasdiqlangan', { exact: true })).toBeVisible();
+  await expect(dialog.locator('.submission-history details')).toHaveCount(2);
+  await dialog.locator('.submission-history summary').first().click();
+  await expect(dialog.locator('.submission-history details').first()).toContainText('2026-yil, E2E sinov davri');
   await expect(dialog.locator('.history-list')).toContainText(returnComment);
   await expect(dialog.getByRole('button', { name: 'PDF / Chop etish' })).toBeVisible();
   const popupPromise = page.waitForEvent('popup');
@@ -157,7 +161,7 @@ test('profile changes persist and work plan supports create, update and delete',
 
   await navigate(page, 'Ish rejam');
   const planTitle = `E2E individual reja ${nonce}`;
-  await page.getByRole('button', { name: 'Reja qo‘shish', exact: true }).click();
+  await page.getByRole('button', { name: 'Reja qo‘shish', exact: true }).first().click();
   let dialog = page.getByRole('dialog');
   await dialog.getByRole('textbox', { name: 'Reja nomi *' }).fill(planTitle);
   await dialog.getByLabel('Bajarish muddati').fill('2026-12-31');
@@ -274,6 +278,11 @@ test('administrator provisions a real account, password changes preserve session
     await dialog.getByRole('button', { name: 'Nofaol qilish', exact: true }).click();
     await expect(page.getByRole('dialog')).toHaveCount(0);
     await expect(row).toContainText('Nofaol');
+    await page.getByText('Administrator amallari tarixi', {exact:true}).click();
+    await expect(page.locator('.history-list')).toContainText(fullName);
+    const auditText=JSON.stringify(await (await page.request.get('/api/admin/audit/')).json());
+    expect(auditText).not.toContain(initialPassword);
+    expect(auditText).not.toContain(changedPassword);
     expect((await employee.request.get('/api/workspace/')).status()).toBe(403);
     const login = await apiPost(employee, 'auth/login/', { username, password: changedPassword });
     expect(login.status()).toBe(401);
@@ -324,8 +333,8 @@ test('administrator-defined required template fields are validated, preserved an
     await dialog.getByLabel(fieldLabel).fill(fieldValue);
     await dialog.getByRole('button', { name: 'Tekshirishga yuborish' }).click();
     await expect(dialog.getByText('Tekshirilmoqda', { exact: true })).toBeVisible();
-    await expect(dialog.locator('.report-custom-values')).toContainText(fieldLabel);
-    await expect(dialog.locator('.report-custom-values')).toContainText(fieldValue);
+    await expect(dialog.locator('.report-custom-values').first()).toContainText(fieldLabel);
+    await expect(dialog.locator('.report-custom-values').first()).toContainText(fieldValue);
     const workspace = await (await page.request.get('/api/workspace/')).json();
     const report = workspace.reports.find((item: { title: string }) => item.title === reportTitle);
     reportId = report.id;
@@ -345,7 +354,7 @@ test('administrator-defined required template fields are validated, preserved an
     // Submitted data is returned through the supported workflow before removal.
     const current = await (await page.request.get('/api/workspace/')).json();
     if (current.user.role !== 'administrator') {
-      expect((await apiPost(page, 'auth/demo/', { role: 'administrator' })).ok()).toBeTruthy();
+      await switchRole(page, 'administrator');
     }
     if (reportId) {
       const reportResponse = await page.request.get(`/api/reports/${reportId}/`);
@@ -354,7 +363,7 @@ test('administrator-defined required template fields are validated, preserved an
       }
     }
     expect((await apiPost(page, `admin/templates/${templateId}/`, { is_active: false }, 'PATCH')).ok()).toBeTruthy();
-    expect((await apiPost(page, 'auth/demo/', { role: 'employee' })).ok()).toBeTruthy();
-    if (reportId) expect((await apiPost(page, `reports/${reportId}/`, undefined, 'DELETE')).ok()).toBeTruthy();
+    await switchRole(page, 'employee');
+    // Submitted reports and their revisions are retained as audit evidence in the isolated test database.
   }
 });

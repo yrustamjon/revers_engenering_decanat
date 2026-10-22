@@ -6,6 +6,7 @@ import type { PageProps, ReportType, Role, Template } from '../types';
 import { reportTypeLabels } from '../types';
 import { SupportingModal } from './Portfolio';
 import './administration.css';
+import AuditTrail from '../components/AuditTrail';
 
 interface ManagedUser {
   id: number; username: string; full_name: string; email: string; role: Role;
@@ -82,6 +83,7 @@ export default function Administration({ workspace, onRefresh, toast }: PageProp
       </>}
       <div className="ad-footer"><ShieldCheck size={15} /><span>Rollar hujjatlarga kirish va tasdiqlash vakolatlarini belgilaydi.</span><span>{tab === 'users' ? `${visibleUsers.length} ta xodim` : tab === 'departments' ? `${visibleDepartments.length} ta bo‘lim` : `${visibleTemplates.length} ta shablon`}</span></div>
     </section>
+    <AuditTrail/>
     {userEditor && <UserEditor user={userEditor === 'new' ? null : userEditor} departments={departments} currentUserId={workspace.user.id} onClose={() => setUserEditor(null)} onSaved={saved} />}
     {departmentEditor && <DepartmentEditor department={departmentEditor === 'new' ? null : departmentEditor} onClose={() => setDepartmentEditor(null)} onSaved={saved} />}
     {templateEditor && <TemplateEditor template={templateEditor === 'new' ? null : templateEditor} onClose={() => setTemplateEditor(null)} onSaved={saved} />}
