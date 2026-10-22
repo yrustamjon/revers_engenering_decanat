@@ -64,7 +64,7 @@ jobs:
         run: npm run test:e2e --prefix frontend
       - name: Save browser results
         if: failure()
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: browser-results
           path: frontend/test-results
@@ -133,7 +133,7 @@ jobs:
         run: bash scripts/security-check.sh
       - name: Security reports
         if: always()
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: source-security-${{ github.sha }}
           path: artifacts/security
@@ -163,7 +163,7 @@ jobs:
           docker run --rm -v "$PWD/.local/image:/scan:ro" -v "$PWD/artifacts/container:/reports" -v trivy-cache:/root/.cache/trivy "$scanner" image --db-repository ghcr.io/aquasecurity/trivy-db:2 --input /scan/app.tar --scanners vuln --severity HIGH,CRITICAL --exit-code 1 --format json --output /reports/vulnerabilities.json
       - name: Container reports
         if: always()
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: container-security-${{ github.sha }}
           path: artifacts/container
@@ -176,7 +176,7 @@ jobs:
           sha256sum uniflow-${{ github.sha }}.tar.gz > SHA256SUMS
       - name: Reviewable release artifact
         if: github.event_name == 'workflow_dispatch'
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: uniflow-release-${{ github.sha }}
           path: |
