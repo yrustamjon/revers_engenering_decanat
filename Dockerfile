@@ -33,7 +33,7 @@ USER uniflow
 EXPOSE 8000
 ENTRYPOINT ["/bin/sh", "/app/deploy/entrypoint.sh"]
 
-FROM nginx:1.28-alpine@sha256:a8b39bd9cf0f83869a2162827a0caf6137ddf759d50a171451b335cecc87d236 AS frontend
+FROM nginx:1.31-alpine@sha256:785835ea65db4bba6f021acc0f3be91b0fef76a53fe41f8588c6698d2aed0606 AS frontend
 COPY deploy/nginx.conf /etc/nginx/conf.d/default.conf
 COPY --from=frontend-build /build/frontend/dist/ /usr/share/nginx/html/
 EXPOSE 8080
